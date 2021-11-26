@@ -1,11 +1,11 @@
 {
   "Author": "srkizer",
   "Name": "Quote of the Lobby",
-  "Punchline": "Get a quote every time you see the lobby menu.",
-  "Description": "Displays a random NpcYell/InstanceContentTextData/PublicContentTextData string resource.",
+  "Punchline": "Simmer does the light before every login.",
+  "Description": "Displays a random dialogue, and/or the datacenter you'll be connecting to when you press GAME START.",
   "InternalName": "quoteOfTheLobby",
   "ApplicableVersion": "any",
   "Tags": [
-    "qotd"
+    "qotd", "lobby", "datacenter"
   ]
 }
