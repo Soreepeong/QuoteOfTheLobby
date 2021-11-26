@@ -1,0 +1,11 @@
+{
+  "Author": "srkizer",
+  "Name": "Quote of the Lobby",
+  "Punchline": "Get a quote every time you see the lobby menu.",
+  "Description": "Displays a random NpcYell/InstanceContentTextData/PublicContentTextData string resource.",
+  "InternalName": "quoteOfTheLobby",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "qotd"
+  ]
+}
