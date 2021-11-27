@@ -6,6 +6,7 @@
     <Version>1.0.0.0</Version>
     <Description>A sample plugin.</Description>
     <Copyright></Copyright>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <PackageProjectUrl>https://github.com/Soreepeong/QuoteOfTheLobby</PackageProjectUrl>
   </PropertyGroup>
 
@@ -19,12 +20,6 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <OutputPath>$(AppData)\XIVLauncher\devPlugins\QuoteOfTheLobby\</OutputPath>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Content Include="..\Data\QuoteOfTheLobby.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
 
   <PropertyGroup>
     <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>

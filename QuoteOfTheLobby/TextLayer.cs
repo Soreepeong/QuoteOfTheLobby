@@ -115,9 +115,6 @@ namespace QuoteOfTheLobby {
                         }
                     }
                 }
-                for (var i = 3; i < borderBuffer.Length; i += 4)
-                    borderBuffer[i] = (byte)(borderBuffer[i] * Config.ColorBorder.W);
-                _borderTexture = _plugin.PluginInterface.UiBuilder.LoadImageRaw(borderBuffer, width, height, 4);
 
                 var fillBuffer = new byte[width * height * 4];
                 foreach (var p in plan.Elements) {
@@ -136,11 +133,16 @@ namespace QuoteOfTheLobby {
                                     (p.Glyph.TextureOffsetX + i) +
                                     (p.Glyph.TextureOffsetY + j) * fdt.Fthd.TextureWidth
                                     )]);
+                            borderBuffer[pos + 3] = Math.Min(borderBuffer[pos + 3], (byte)(255 - fillBuffer[pos + 3]));
                         }
                     }
                 }
-                for (var i = 3; i < fillBuffer.Length; i += 4)
+                for (var i = 3; i < borderBuffer.Length; i += 4) {
+                    borderBuffer[i] = (byte)(Math.Min(borderBuffer[i], (byte)(255 - fillBuffer[i])) * Config.ColorBorder.W);
                     fillBuffer[i] = (byte)(fillBuffer[i] * Config.ColorFill.W);
+                }
+
+                _borderTexture = _plugin.PluginInterface.UiBuilder.LoadImageRaw(borderBuffer, width, height, 4);
                 _fillTexture = _plugin.PluginInterface.UiBuilder.LoadImageRaw(fillBuffer, width, height, 4);
             }
 
