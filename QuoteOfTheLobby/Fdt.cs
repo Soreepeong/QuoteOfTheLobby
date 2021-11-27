@@ -160,8 +160,49 @@ namespace QuoteOfTheLobby {
                     }
                 }
 
+                public bool IsChineseCharacter {
+                    get {
+                        // CJK Symbols and Punctuation(〇)
+                        if (0x3007 <= Codepoint && Codepoint <= 0x3007)
+                            return true;
+
+                        // CJK Unified Ideographs Extension A
+                        if (0x3400 <= Codepoint && Codepoint <= 0x4DBF)
+                            return true;
+
+                        // CJK Unified Ideographs
+                        if (0x4E00 <= Codepoint && Codepoint <= 0x9FFF)
+                            return true;
+
+                        // CJK Unified Ideographs Extension B
+                        if (0x20000 <= Codepoint && Codepoint <= 0x2A6DF)
+                            return true;
+
+                        // CJK Unified Ideographs Extension C
+                        if (0x2A700 <= Codepoint && Codepoint <= 0x2B73F)
+                            return true;
+
+                        // CJK Unified Ideographs Extension D
+                        if (0x2B740 <= Codepoint && Codepoint <= 0x2B81F)
+                            return true;
+
+                        // CJK Unified Ideographs Extension E
+                        if (0x2B820 <= Codepoint && Codepoint <= 0x2CEAF)
+                            return true;
+
+                        // CJK Unified Ideographs Extension F
+                        if (0x2CEB0 <= Codepoint && Codepoint <= 0x2EBEF)
+                            return true;
+
+                        return false;
+                    }
+                }
+
                 public bool IsWordBreakPoint {
                     get {
+                        if (IsChineseCharacter)
+                            return true;
+
                         if (Codepoint >= 0x10000)
                             return false;
 
@@ -192,6 +233,7 @@ namespace QuoteOfTheLobby {
                 }
             }
 
+            public int Left;
             public int Width;
             public int Height;
             public List<Element> Elements = new();
@@ -338,6 +380,7 @@ namespace QuoteOfTheLobby {
                         throw new ArgumentException("Invalid horizontal alignment");
                     for (var j = from; j < to; j++)
                         plan.Elements[j].X += offsetX;
+                    plan.Left = i == 1 ? plan.Elements[from].X : Math.Min(plan.Left, plan.Elements[from].X);
                 }
                 plan.Height = Math.Max(plan.Height, _fdt.Fthd.LineHeight * (lineBreakIndices.Count - 1));
 

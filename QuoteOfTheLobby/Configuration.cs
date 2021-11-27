@@ -1,4 +1,5 @@
-﻿using Dalamud.Configuration;
+﻿using Dalamud;
+using Dalamud.Configuration;
 using Dalamud.Plugin;
 using System;
 using System.Collections.Generic;
@@ -37,11 +38,26 @@ namespace QuoteOfTheLobby {
 
             public float HorizontalMargin = 0.1f;
 
-            public Vector4 ColorFill = new(255, 255, 255, 255);
+            public int BackgroundPadding = 2;
 
-            public Vector4 ColorBorder = new(0, 0, 0, 255);
+            public Vector4 ColorFill = new(1, 1, 1, 1);
 
-            public int BorderWidth = 1;
+            public Vector4 ColorBorder = new(0, 0, 0, 1);
+
+            public Vector4 ColorBackground = new(0, 0, 0, 0);
+
+            public float BorderWidth = 2;
+
+            public float BorderStrength = 1;
+
+            public int LanguageVal = Enum.GetNames(typeof(ClientLanguage)).Length;
+            public ClientLanguage? Language {
+                get {
+                    if (LanguageVal == Enum.GetNames(typeof(ClientLanguage)).Length)
+                        return null;
+                    return (ClientLanguage)LanguageVal;
+                }
+            }
 
             public int TypeVal = (int)TextLayerType.RandomDialogue;
             public TextLayerType Type {

@@ -24,17 +24,14 @@ namespace QuoteOfTheLobby {
     public sealed class Plugin : IDalamudPlugin {
         private static readonly string HideNamedUiElementSignature = "40 57 48 83 EC 20 48 8B F9 48 8B 89 C8 00 00 00 48 85 C9 0F ?? ?? ?? ?? ?? 8B 87 B0 01 00 00 C1 E8 07 A8 01";
         private static readonly string ShowNamedUiElementSignature = "40 53 48 83 EC 40 48 8B 91 C8 00 00 00 48 8B D9 48 85 D2";
-        private static readonly string[] ValidDialogueSuffixes = { ".", "!", "?", "！", "！", "。", "…" };
-
-        private static readonly int[] TextureChannelOrder = { 2, 1, 0, 3 };
 
         public string Name => "Quote of the Lobby";
 
-        private readonly DalamudPluginInterface _pluginInterface;
-        private readonly CommandManager _commandManager;
-        private readonly DataManager _dataManager;
-        private readonly ClientState _clientState;
-        private readonly SigScanner _sigScanner;
+        public readonly DalamudPluginInterface PluginInterface;
+        public readonly CommandManager CommandManager;
+        public readonly DataManager DataManager;
+        public readonly ClientState ClientState;
+        public readonly SigScanner SigScanner;
 
         private readonly Configuration _config;
 
@@ -43,17 +40,15 @@ namespace QuoteOfTheLobby {
 
         private IntPtr _gameWindowHwnd = IntPtr.Zero;
 
-        private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.GeneratedSheets.InstanceContentTextData> _instanceContentTextData;
-        private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.GeneratedSheets.PublicContentTextData> _publicContentTextData;
-        private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.GeneratedSheets.PartyContentTextData> _partyContentTextData;
-        private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.GeneratedSheets.NpcYell> _npcYell;
         private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.GeneratedSheets.World> _world;
         private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.GeneratedSheets.WorldDCGroupType> _worldDcGroupType;
         private readonly List<Fdt> _fdts = new();
+        private readonly List<byte[]> _fontTextureData = new();
         private readonly List<ImGuiScene.TextureWrap> _fontTextures = new();
 
         private readonly Dictionary<Guid, TextLayer> _layers = new();
         private readonly Dictionary<string, bool> _gameLayerVisibility = new();
+        private Dictionary<ClientLanguage, RandomQuoteReader> _randomQuoteReaders = new();
 
         private readonly List<IDisposable> _disposableList = new();
 
@@ -66,27 +61,23 @@ namespace QuoteOfTheLobby {
             [RequiredVersion("1.0")] ClientState clientState,
             [RequiredVersion("1.0")] SigScanner sigScanner) {
             try {
-                _pluginInterface = pluginInterface;
-                _commandManager = commandManager;
-                _dataManager = dataManager;
-                _clientState = clientState;
-                _sigScanner = sigScanner;
+                PluginInterface = pluginInterface;
+                CommandManager = commandManager;
+                DataManager = dataManager;
+                ClientState = clientState;
+                SigScanner = sigScanner;
 
-                _config = _pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-                _config.Initialize(_pluginInterface);
+                _config = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+                _config.Initialize(PluginInterface);
 
-                _instanceContentTextData = _dataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.InstanceContentTextData>(clientState.ClientLanguage)!;
-                _publicContentTextData = _dataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.PublicContentTextData>(clientState.ClientLanguage)!;
-                _partyContentTextData = _dataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.PartyContentTextData>(clientState.ClientLanguage)!;
-                _npcYell = _dataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.NpcYell>(clientState.ClientLanguage)!;
-                _world = _dataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.World>()!;
-                _worldDcGroupType = _dataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.WorldDCGroupType>()!;
+                _world = DataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.World>()!;
+                _worldDcGroupType = DataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.WorldDCGroupType>()!;
 
                 foreach (var fontName in Constants.FontNames)
-                    _fdts.Add(new Fdt(_dataManager.GetFile($"common/font/{fontName}.fdt")!.Data));
+                    _fdts.Add(new Fdt(DataManager.GetFile($"common/font/{fontName}.fdt")!.Data));
                 byte[] buf = new byte[1024 * 1024 * 4];
                 foreach (var i in Enumerable.Range(1, 100)) {
-                    var tf = _dataManager.GameData.GetFile<TexFile>($"common/font/font{i}.tex");
+                    var tf = DataManager.GameData.GetFile<TexFile>($"common/font/font{i}.tex");
                     if (tf == null)
                         break;
 
@@ -94,16 +85,17 @@ namespace QuoteOfTheLobby {
                     if (tf.ImageData.Length != tf.Header.Width * tf.Header.Height * 4)
                         throw new Exception("TexE");
 
+                    _fontTextureData.Add(tf.ImageData);
                     if (buf.Length < tf.Header.Width * tf.Header.Height * 4)
                         buf = new byte[tf.Header.Width * tf.Header.Height * 4];
-                    foreach (var j in TextureChannelOrder) {
+                    foreach (var j in Constants.TextureChannelOrder) {
                         for (int k = 0, k_ = tf.Header.Width * tf.Header.Height * 4, s = j; k < k_; s += 4) {
                             buf[k++] = tf.ImageData[s];
                             buf[k++] = tf.ImageData[s];
                             buf[k++] = tf.ImageData[s];
                             buf[k++] = tf.ImageData[s];
                         }
-                        _fontTextures.Add(_pluginInterface.UiBuilder.LoadImageRaw(buf, tf.Header.Width, tf.Header.Height, 4));
+                        _fontTextures.Add(PluginInterface.UiBuilder.LoadImageRaw(buf, tf.Header.Width, tf.Header.Height, 4));
                     }
                 }
                 _disposableList.AddRange(_fontTextures);
@@ -124,11 +116,11 @@ namespace QuoteOfTheLobby {
                 foreach (var t in _config.TextLayers)
                     _layers[t.Guid] = new TextLayer(this, t);
 
-                _pluginInterface.UiBuilder.Draw += DrawUI;
-                _pluginInterface.UiBuilder.OpenConfigUi += () => { _configWindowVisible = !_configWindowVisible; };
+                PluginInterface.UiBuilder.Draw += DrawUI;
+                PluginInterface.UiBuilder.OpenConfigUi += () => { _configWindowVisible = !_configWindowVisible; };
 
-                var hideNamedUiElementAddress = _sigScanner.ScanText(HideNamedUiElementSignature);
-                var showNamedUiElementAddress = _sigScanner.ScanText(ShowNamedUiElementSignature);
+                var hideNamedUiElementAddress = SigScanner.ScanText(HideNamedUiElementSignature);
+                var showNamedUiElementAddress = SigScanner.ScanText(ShowNamedUiElementSignature);
 
                 _disposableList.Add(_hideHook = new Hook<HideShowNamedUiElementDelegate>(hideNamedUiElementAddress, this.HideNamedUiElementDetour));
                 _disposableList.Add(_showHook = new Hook<HideShowNamedUiElementDelegate>(showNamedUiElementAddress, this.ShowNamedUiElementDetour));
@@ -153,6 +145,9 @@ namespace QuoteOfTheLobby {
 
         public void Dispose() {
             Save();
+            foreach (var layer in _layers.Values)
+                layer.Dispose();
+            _layers.Clear();
             foreach (var item in _disposableList.AsEnumerable().Reverse()) {
                 try {
                     item.Dispose();
@@ -183,44 +178,22 @@ namespace QuoteOfTheLobby {
             return _world.GetRow(worldId)?.DataCenter.Value?.Name.ToDalamudString();
         }
 
-        public SeString? GetRandomQuote() {
-            var i = 0;
-            while (i++ < 64) {
-                SeString txt;
-                var n = (uint)new Random().Next((int)(_instanceContentTextData.RowCount + _publicContentTextData.RowCount + _partyContentTextData.RowCount + _npcYell.RowCount));
-                try {
-                    if (n < _instanceContentTextData.RowCount) {
-                        txt = _instanceContentTextData.GetRow(n)!.Text.ToDalamudString();
-                    } else {
-                        n -= _instanceContentTextData.RowCount;
-                        if (n < _publicContentTextData.RowCount) {
-                            txt = _publicContentTextData.GetRow(n)!.TextData.ToDalamudString();
-                        } else {
-                            n -= _publicContentTextData.RowCount;
-                            if (n < _partyContentTextData.RowCount) {
-                                txt = _partyContentTextData.GetRow(n)!.Data.ToDalamudString();
-                            } else {
-                                n -= _partyContentTextData.RowCount;
-                                txt = _npcYell.GetRow(n)!.Text.ToDalamudString();
-                            }
-                        }
-                    }
-                } catch (NullReferenceException) {
-                    continue;
-                }
-                if (!ValidDialogueSuffixes.Any(x => txt.TextValue.EndsWith(x)))
-                    continue;
-                if (txt.Payloads.Any(x => x.Type != PayloadType.NewLine && x.Type != PayloadType.SeHyphen && x.Type != PayloadType.RawText))
-                    continue;
+        public RandomQuoteReader GetRandomQuoteReader(ClientLanguage? language) {
+            if (language == null)
+                language = ClientState.ClientLanguage;
 
-                PluginLog.Information($"Test: {txt}");
-                return txt;
-            }
-            return null;
+            if (_randomQuoteReaders.ContainsKey((ClientLanguage)language))
+                return _randomQuoteReaders[(ClientLanguage)language];
+            else
+                return _randomQuoteReaders[(ClientLanguage)language] = new RandomQuoteReader(DataManager, (ClientLanguage)language);
         }
 
         public Fdt GetFdt(int index) {
             return _fdts[index];
+        }
+
+        public byte[] GetFontTextureData(int index) {
+            return _fontTextureData[index];
         }
 
         public ImGuiScene.TextureWrap GetFontTexture(int index) {
@@ -241,7 +214,7 @@ namespace QuoteOfTheLobby {
             Native.GetClientRect(_gameWindowHwnd, out Native.RECT rc);
             Native.ClientToScreen(_gameWindowHwnd, ref rc);
 
-            ImGui.SetNextWindowSize(new Vector2(375, 330), ImGuiCond.Once);
+            ImGui.SetNextWindowSize(new Vector2(400, 500), ImGuiCond.Once);
 
             if (_configWindowVisible) {
                 if (ImGui.Begin("Quote of the Lobby Config", ref _configWindowVisible, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
@@ -273,8 +246,10 @@ namespace QuoteOfTheLobby {
                                 }
                             }
                             if (dels != null) {
-                                foreach (var d in dels)
+                                foreach (var d in dels) {
+                                    _layers[d].Dispose();
                                     _layers.Remove(d);
+                                }
                             }
                         } finally { ImGui.EndTabBar(); }
                     } finally { ImGui.End(); }

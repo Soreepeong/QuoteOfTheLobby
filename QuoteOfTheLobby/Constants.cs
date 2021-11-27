@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 
 namespace QuoteOfTheLobby {
 	public class Constants {
-		public static readonly string[] FontNames = {
+        public static readonly int[] TextureChannelOrder = { 2, 1, 0, 3 };
+        public static readonly string[] FontNames = {
 			"AXIS_96", "AXIS_12", "AXIS_18", "AXIS_36",
 			"Jupiter_16", "Jupiter_20", "Jupiter_23", "Jupiter_46",
 			"MiedingerMid_10", "MiedingerMid_12", "MiedingerMid_14", "MiedingerMid_18", "MiedingerMid_36",
@@ -21,5 +22,12 @@ namespace QuoteOfTheLobby {
 		public static readonly string[] TextLayerTypeNames = {
 			"Random Quote", "Default Datacenter",
 		};
-	}
+		public static readonly string[] LanguageNames = { 
+			"Japanese",
+			"English",
+			"German",
+			"French",
+			"Follow client startup language",
+		};
+    }
 }
