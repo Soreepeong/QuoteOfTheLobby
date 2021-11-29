@@ -31,7 +31,7 @@ namespace QuoteOfTheLobby {
             _npcYell = _dataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.NpcYell>(language)!;
         }
 
-        public SeString? GetRandomQuote() {
+        public SeString GetRandomQuote() {
             var i = 0;
             while (i++ < 64) {
                 SeString txt;
@@ -63,7 +63,7 @@ namespace QuoteOfTheLobby {
 
                 return txt;
             }
-            return null;
+            return SeString.Empty;
         }
     }
 }

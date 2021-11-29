@@ -42,9 +42,8 @@ namespace QuoteOfTheLobby {
 
         private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.GeneratedSheets.World> _world;
         private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.GeneratedSheets.WorldDCGroupType> _worldDcGroupType;
-        private readonly List<Fdt> _fdts = new();
-        private readonly List<byte[]> _fontTextureData = new();
-        private readonly List<ImGuiScene.TextureWrap> _fontTextures = new();
+        public readonly List<Fdt> Fdts = new();
+        public readonly List<byte[]> FontTextureData = new();
 
         private readonly Dictionary<Guid, TextLayer> _layers = new();
         private readonly Dictionary<string, bool> _gameLayerVisibility = new();
@@ -74,7 +73,7 @@ namespace QuoteOfTheLobby {
                 _worldDcGroupType = DataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.WorldDCGroupType>()!;
 
                 foreach (var fontName in Constants.FontNames)
-                    _fdts.Add(new Fdt(DataManager.GetFile($"common/font/{fontName}.fdt")!.Data));
+                    Fdts.Add(new Fdt(DataManager.GetFile($"common/font/{fontName}.fdt")!.Data));
                 byte[] buf = new byte[1024 * 1024 * 4];
                 foreach (var i in Enumerable.Range(1, 100)) {
                     var tf = DataManager.GameData.GetFile<TexFile>($"common/font/font{i}.tex");
@@ -85,20 +84,8 @@ namespace QuoteOfTheLobby {
                     if (tf.ImageData.Length != tf.Header.Width * tf.Header.Height * 4)
                         throw new Exception("TexE");
 
-                    _fontTextureData.Add(tf.ImageData);
-                    if (buf.Length < tf.Header.Width * tf.Header.Height * 4)
-                        buf = new byte[tf.Header.Width * tf.Header.Height * 4];
-                    foreach (var j in Constants.TextureChannelOrder) {
-                        for (int k = 0, k_ = tf.Header.Width * tf.Header.Height * 4, s = j; k < k_; s += 4) {
-                            buf[k++] = tf.ImageData[s];
-                            buf[k++] = tf.ImageData[s];
-                            buf[k++] = tf.ImageData[s];
-                            buf[k++] = tf.ImageData[s];
-                        }
-                        _fontTextures.Add(PluginInterface.UiBuilder.LoadImageRaw(buf, tf.Header.Width, tf.Header.Height, 4));
-                    }
+                    FontTextureData.Add(tf.ImageData);
                 }
-                _disposableList.AddRange(_fontTextures);
 
                 if (_config.TextLayers.Count == 0) {
                     _config.TextLayers.Add(new Configuration.TextLayerConfiguration() {
@@ -189,15 +176,11 @@ namespace QuoteOfTheLobby {
         }
 
         public Fdt GetFdt(int index) {
-            return _fdts[index];
+            return Fdts[index];
         }
 
         public byte[] GetFontTextureData(int index) {
-            return _fontTextureData[index];
-        }
-
-        public ImGuiScene.TextureWrap GetFontTexture(int index) {
-            return _fontTextures[index];
+            return FontTextureData[index];
         }
 
         private void DrawUI() {
@@ -270,7 +253,7 @@ namespace QuoteOfTheLobby {
                             if (e.Config.VisibleWith == "" || e.Config.VisibleWith.Split(",").Any(x => _gameLayerVisibility.GetValueOrDefault(x.Trim(), false)))
                                 e.DrawText(rc);
                             else
-                                e.RefreshText();
+                                e.RefreshText(true);
                         }
                     } catch (Exception ex) {
                         PluginLog.Error(ex, "?");

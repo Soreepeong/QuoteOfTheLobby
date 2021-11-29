@@ -50,6 +50,10 @@ namespace QuoteOfTheLobby {
 
             public float BorderStrength = 1;
 
+            public float FadeDuration = 3f;
+
+            public int CycleInterval = 0;
+
             public int LanguageVal = Enum.GetNames(typeof(ClientLanguage)).Length;
             public ClientLanguage? Language {
                 get {
