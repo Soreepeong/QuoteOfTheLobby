@@ -34,6 +34,7 @@ namespace QuoteOfTheLobby {
             }
 
             public void Cancel() {
+                BuilderThread?.Join();
                 CancellationToken?.Cancel();
                 BuilderThread = null;
                 BuildResult = null;
@@ -165,6 +166,7 @@ namespace QuoteOfTheLobby {
 
                 float opacity;
                 if (t.FadeOutAt > 0 && t.FadeOutAt <= now) {
+                    t.ClearTexture();
                     _textures.RemoveAt(i);
                     --i;
                     continue;
