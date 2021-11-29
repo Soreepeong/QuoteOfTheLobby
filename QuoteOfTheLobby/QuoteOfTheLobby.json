@@ -6,7 +6,10 @@
   "InternalName": "quoteOfTheLobby",
   "ApplicableVersion": "any",
   "RepoUrl": "https://github.com/Soreepeong/QuoteOfTheLobby.json",
+  "LoadPriority": 99,
   "Tags": [
-    "qotd", "lobby", "datacenter"
+    "qotd",
+    "lobby",
+    "datacenter"
   ]
 }
