@@ -219,7 +219,6 @@ namespace QuoteOfTheLobby {
                     Deleted = true;
                 }
 
-                ImGui.Text($"GUID: {Config.Guid}");
                 ImGui.InputText("Name", ref Config.Name, 64);
                 ImGui.InputText("Visible With", ref Config.VisibleWith, 64);
                 ImGui.Combo("Type", ref Config.TypeVal, Constants.TextLayerTypeNames, Constants.TextLayerTypeNames.Length);
