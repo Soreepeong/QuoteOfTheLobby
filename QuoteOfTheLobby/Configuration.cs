@@ -16,7 +16,7 @@ namespace QuoteOfTheLobby {
         public enum TextLayerType {
             RandomDialogue,
             DefaultDatacenter,
-            FixedText,
+            StickyNote,
         }
 
         public enum VerticalSnapType {
@@ -53,6 +53,12 @@ namespace QuoteOfTheLobby {
 
             public float FadeDuration = 3f;
 
+            public float BoldWeight = 1f;
+
+            public float ItalicWidth = 2f;
+
+            public float Zoom = 1f;
+
             public int CycleInterval = 0;
 
             public int LanguageVal = Enum.GetNames(typeof(ClientLanguage)).Length;
@@ -82,7 +88,7 @@ namespace QuoteOfTheLobby {
                 set { VerticalSnapInt = (int)value; }
             }
 
-            public string FixedText = "Text";
+            public string StickyNote = "Text";
         }
 
         public bool ConfigVisible = true;

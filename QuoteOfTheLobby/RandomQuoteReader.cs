@@ -1,13 +1,9 @@
 ﻿using Dalamud.Data;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.IoC;
-using Dalamud.Logging;
 using Dalamud.Utility;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace QuoteOfTheLobby {
     public class RandomQuoteReader {
@@ -58,7 +54,7 @@ namespace QuoteOfTheLobby {
                 }
                 if (!ValidDialogueSuffixes.Any(x => txt.TextValue.EndsWith(x)))
                     continue;
-                if (txt.Payloads.Any(x => x.Type != PayloadType.NewLine && x.Type != PayloadType.SeHyphen && x.Type != PayloadType.RawText))
+                if (txt.Payloads.Any(x => x.Type != PayloadType.EmphasisItalic && x.Type != PayloadType.NewLine && x.Type != PayloadType.SeHyphen && x.Type != PayloadType.RawText))
                     continue;
 
                 return txt;

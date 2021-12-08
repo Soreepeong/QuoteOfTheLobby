@@ -13,6 +13,8 @@ namespace QuoteOfTheLobby {
         public Fdt.LayoutBuilder.HorizontalAlignment _horizontalAlignment;
         private float _borderWidth;
         private float _borderStrength;
+        private float _boldness = 1;
+        private float _italicness = 4;
         private int _maxWidth;
         private Vector4 _borderColor;
         private Vector4 _fillColor;
@@ -24,6 +26,16 @@ namespace QuoteOfTheLobby {
 
         public TextTextureGenerator WithText(SeString text) {
             _text = text;
+            return this;
+        }
+
+        public TextTextureGenerator WithBoldness(float boldness) {
+            _boldness = boldness;
+            return this;
+        }
+
+        public TextTextureGenerator WithItalicness(float italicness) {
+            _italicness = italicness;
             return this;
         }
 
@@ -72,6 +84,8 @@ namespace QuoteOfTheLobby {
 
                 var plan = _fdt
                     .BuildLayout(_text)
+                    .WithItalicness(_italicness)
+                    .WithBoldness(_boldness)
                     .WithMaxWidth(_maxWidth - 2 * pad)
                     .WithHorizontalAlignment(_horizontalAlignment)
                     .Build();
@@ -95,14 +109,29 @@ namespace QuoteOfTheLobby {
                         continue;
                     var sourceBuffer = _textureData[p.Glyph.TextureIndex / 4];
                     var sourceBufferDelta = Constants.TextureChannelOrder[p.Glyph.TextureIndex % 4];
-                    for (var i = 0; i < p.Glyph.BoundingWidth; i++) {
+                    for (var xbold = 0; xbold < p.Bold + 1; xbold++) {
+                        float boldStrength = Math.Min(1f, p.Bold + 1 - xbold);
                         for (var j = 0; j < p.Glyph.BoundingHeight; j++) {
-                            var pos = 4 * ((i + pad + p.X - plan.Left) + width * (j + pad + p.Y));
-                            fillBuffer[pos + 3] = Math.Max(fillBuffer[pos + 3],
-                                sourceBuffer[sourceBufferDelta + 4 * (
-                                    (p.Glyph.TextureOffsetX + i) +
-                                    (p.Glyph.TextureOffsetY + j) * _fdt.Fthd.TextureWidth
-                                    )]);
+                            float xDelta = xbold + pad + p.X - plan.Left;
+                            if (p.Italic > 0)
+                                xDelta += 1f * p.Italic * (_fdt.Fthd.LineHeight - p.Glyph.CurrentOffsetY - j) / _fdt.Fthd.LineHeight;
+                            else if (p.Italic < 0)
+                                xDelta -= 1f * p.Italic * (p.Glyph.CurrentOffsetY + j) / _fdt.Fthd.LineHeight;
+                            var xDeltaInt = (int)Math.Floor(xDelta);
+                            var xness = xDelta - xDeltaInt;
+                            for (var i = 0; i < p.Glyph.BoundingWidth; i++) {
+                                var pos = 4 * (i + xDeltaInt + width * (j + pad + p.Y));
+                                var n1 = sourceBuffer[sourceBufferDelta + 4 * (
+                                        (p.Glyph.TextureOffsetX + i) +
+                                        (p.Glyph.TextureOffsetY + j) * _fdt.Fthd.TextureWidth
+                                        )];
+                                var n2 = i == p.Glyph.BoundingWidth - 1 ? 0 : sourceBuffer[sourceBufferDelta + 4 * (
+                                        (p.Glyph.TextureOffsetX + i + 1) +
+                                        (p.Glyph.TextureOffsetY + j) * _fdt.Fthd.TextureWidth
+                                        )];
+                                var n = n1 * xness + n2 * (1 - xness);
+                                fillBuffer[pos + 3] = Math.Max(fillBuffer[pos + 3], (byte)(boldStrength * n));
+                            }
                         }
                     }
                 }
@@ -116,22 +145,36 @@ namespace QuoteOfTheLobby {
                             continue;
                         var sourceBuffer = _textureData[p.Glyph.TextureIndex / 4];
                         var sourceBufferDelta = Constants.TextureChannelOrder[p.Glyph.TextureIndex % 4];
-                        for (var x = 0; x <= 2 * pad; x++) {
-                            for (var y = 0; y <= 2 * pad; y++) {
-                                for (var i = 0; i < p.Glyph.BoundingWidth; i++) {
+                        for (var xbold = 0; xbold < p.Bold + 1; xbold++) {
+                            float boldStrength = Math.Min(1f, p.Bold + 1 - xbold);
+                            for (var x = 0; x <= 2 * pad; x++) {
+                                for (var y = 0; y <= 2 * pad; y++) {
                                     for (var j = 0; j < p.Glyph.BoundingHeight; j++) {
-                                        var pos = 4 * ((i + x + p.X - plan.Left) + width * (j + y + p.Y));
-                                        borderBuffer[pos + 3] = Math.Max(borderBuffer[pos + 3],
-                                            (byte)(distanceMap[x, y] *
-                                            sourceBuffer[sourceBufferDelta + 4 * (
-                                                (p.Glyph.TextureOffsetX + i) +
-                                                (p.Glyph.TextureOffsetY + j) * _fdt.Fthd.TextureWidth
-                                                )]));
+                                        float xDelta = x + xbold + p.X - plan.Left;
+                                        if (p.Italic > 0)
+                                            xDelta += 1f * p.Italic * (_fdt.Fthd.LineHeight - p.Glyph.CurrentOffsetY - j) / _fdt.Fthd.LineHeight;
+                                        else if (p.Italic < 0)
+                                            xDelta -= 1f * p.Italic * (p.Glyph.CurrentOffsetY + j) / _fdt.Fthd.LineHeight;
+                                        var xDeltaInt = (int)Math.Floor(xDelta);
+                                        var xness = xDelta - xDeltaInt;
+                                        for (var i = 0; i < p.Glyph.BoundingWidth; i++) {
+                                            var pos = 4 * (i + xDeltaInt + width * (j + y + p.Y));
+                                            var n1 = sourceBuffer[sourceBufferDelta + 4 * (
+                                                    (p.Glyph.TextureOffsetX + i) +
+                                                    (p.Glyph.TextureOffsetY + j) * _fdt.Fthd.TextureWidth
+                                                    )];
+                                            var n2 = i == p.Glyph.BoundingWidth - 1 ? 0 : sourceBuffer[sourceBufferDelta + 4 * (
+                                                    (p.Glyph.TextureOffsetX + i + 1) +
+                                                    (p.Glyph.TextureOffsetY + j) * _fdt.Fthd.TextureWidth
+                                                    )];
+                                            var n = n1 * xness + n2 * (1 - xness);
+                                            borderBuffer[pos + 3] = Math.Max(borderBuffer[pos + 3], (byte)(distanceMap[x, y] * boldStrength * n));
+                                        }
                                     }
                                 }
+                                if (ctSource.Token.IsCancellationRequested)
+                                    return;
                             }
-                            if (ctSource.Token.IsCancellationRequested)
-                                return;
                         }
                     }
 

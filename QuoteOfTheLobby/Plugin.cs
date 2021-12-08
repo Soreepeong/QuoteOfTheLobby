@@ -56,15 +56,29 @@ namespace QuoteOfTheLobby {
 
         private void SetupDefaultTextLayers() {
             _config.TextLayers.Add(new Configuration.TextLayerConfiguration() {
-                Name = "Random Quote",
-                Type = Configuration.TextLayerType.RandomDialogue,
-                VerticalPosition = 0.1f,
+                Name = "Welcome",
+                Type = Configuration.TextLayerType.StickyNote,
+                VerticalPosition = 0.2f,
+                BoldWeight = 1f,
+                ItalicWidth = 4f,
+                BorderWidth = 4f,
+                FontIndex = 14,
+                StickyNote = (
+                    "**Quote of the Lobby** is now ready.\n" +
+                    "Refer to the *config window* to get started."
+                ),
             });
             _config.TextLayers.Add(new Configuration.TextLayerConfiguration() {
                 Name = "Default Datacenter",
                 Type = Configuration.TextLayerType.DefaultDatacenter,
                 VerticalPosition = 0.95f,
                 FontIndex = 11,
+            });
+            _config.TextLayers.Add(new Configuration.TextLayerConfiguration() {
+                Name = "Random Quote",
+                Type = Configuration.TextLayerType.RandomDialogue,
+                VerticalPosition = 0.02f,
+                FontIndex = 3,
             });
         }
 
@@ -107,7 +121,7 @@ namespace QuoteOfTheLobby {
             Native.GetClientRect(_gameWindowHwnd, out Native.RECT rc);
             Native.ClientToScreen(_gameWindowHwnd, ref rc);
 
-            ImGui.SetNextWindowSize(new Vector2(400, 550), ImGuiCond.Once);
+            ImGui.SetNextWindowSize(new Vector2(400, 640), ImGuiCond.Once);
 
             if (_config.ConfigVisible) {
                 if (ImGui.Begin("Quote of the Lobby Config", ref _config.ConfigVisible))

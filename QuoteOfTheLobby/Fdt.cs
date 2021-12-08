@@ -3,6 +3,7 @@ using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -135,7 +136,8 @@ namespace QuoteOfTheLobby {
         public class LayoutPlan {
             public class Element {
                 public int Codepoint { get; init; }
-                public bool Italic { get; init; }
+                public float Italic { get; init; }
+                public float Bold { get; init; }
 
                 public int X { get; internal set; }
                 public int Y { get; internal set; }
@@ -239,6 +241,43 @@ namespace QuoteOfTheLobby {
             public List<Element> Elements = new();
         }
 
+        public class InternalBoldPayload : Payload {
+            public static InternalBoldPayload BoldOn => new(enabled: true);
+
+            public static InternalBoldPayload BoldOff => new(enabled: false);
+
+            public bool IsEnabled {
+                get;
+                private set;
+            }
+
+            public override PayloadType Type => PayloadType.Unknown;
+
+            public InternalBoldPayload(bool enabled) {
+                IsEnabled = enabled;
+            }
+
+            internal InternalBoldPayload() {
+            }
+
+            public override string ToString() {
+                return $"{Type} - Enabled: {IsEnabled}";
+            }
+
+            protected override byte[] EncodeImpl() {
+                byte[] array = MakeInteger(IsEnabled ? 1u : 0u);
+                int num = array.Length + 1;
+                List<byte> list = new(){2, 0x70, (byte)num};
+                list.AddRange(array);
+                list.Add(3);
+                return list.ToArray();
+            }
+
+            protected override void DecodeImpl(BinaryReader reader, long endOfStream) {
+                IsEnabled = (GetInteger(reader) == 1);
+            }
+        }
+
         public class LayoutBuilder {
             public enum HorizontalAlignment {
                 Left,
@@ -250,11 +289,23 @@ namespace QuoteOfTheLobby {
             private readonly SeString _text;
             private int _maxWidth = int.MaxValue;
             private int _translateX, _translateY;
+            private float _boldness = 1;
+            private float _italicness = 4;
             private HorizontalAlignment _horizontalAlignment = HorizontalAlignment.Left;
 
             internal LayoutBuilder(Fdt fdt, SeString text) {
                 _fdt = fdt;
                 _text = text;
+            }
+
+            public LayoutBuilder WithBoldness(float boldness) {
+                _boldness = boldness;
+                return this;
+            }
+
+            public LayoutBuilder WithItalicness(float italicness) {
+                _italicness = italicness;
+                return this;
             }
 
             public LayoutBuilder WithMaxWidth(int maxWidth) {
@@ -274,7 +325,8 @@ namespace QuoteOfTheLobby {
             }
 
             private void Build_LoadCodepointAndItalics(LayoutPlan plan) {
-                bool italic = false;
+                float italic = 0;
+                float bold = 0;
                 foreach (var payload in _text.Payloads) {
                     if (payload.Type == PayloadType.NewLine) {
                         plan.Elements.Add(new LayoutPlan.Element { Codepoint = '\n', Italic = italic });
@@ -284,16 +336,16 @@ namespace QuoteOfTheLobby {
                         var bs = payload.Encode()!;
                         for (var i = 0; i < bs.Length;) {
                             if ((bs[i] & 0x80) == 0) {
-                                plan.Elements.Add(new LayoutPlan.Element { Codepoint = bs[i], Italic = italic });
+                                plan.Elements.Add(new LayoutPlan.Element { Codepoint = bs[i], Italic = italic, Bold = bold });
                                 i += 1;
                             } else if ((bs[i] & 0xE0) == 0xC0) {
-                                plan.Elements.Add(new LayoutPlan.Element { Codepoint = (bs[i] & 0x1F) << 6 | (bs[i + 1] & 0x3F), Italic = italic });
+                                plan.Elements.Add(new LayoutPlan.Element { Codepoint = (bs[i] & 0x1F) << 6 | (bs[i + 1] & 0x3F), Italic = italic, Bold = bold });
                                 i += 2;
                             } else if ((bs[i] & 0xF0) == 0xE0) {
-                                plan.Elements.Add(new LayoutPlan.Element { Codepoint = (bs[i] & 0x0F) << 12 | (bs[i + 1] & 0x3F) << 6 | (bs[i + 2] & 0x3F), Italic = italic });
+                                plan.Elements.Add(new LayoutPlan.Element { Codepoint = (bs[i] & 0x0F) << 12 | (bs[i + 1] & 0x3F) << 6 | (bs[i + 2] & 0x3F), Italic = italic, Bold = bold });
                                 i += 3;
                             } else if ((bs[i] & 0xF8) == 0xF0) {
-                                plan.Elements.Add(new LayoutPlan.Element { Codepoint = (bs[i] & 0x07) << 18 | (bs[i + 1] & 0x3F) << 12 | (bs[i + 2] & 0x3F) << 6 | (bs[i + 3] & 0x3F), Italic = italic });
+                                plan.Elements.Add(new LayoutPlan.Element { Codepoint = (bs[i] & 0x07) << 18 | (bs[i + 1] & 0x3F) << 12 | (bs[i + 2] & 0x3F) << 6 | (bs[i + 3] & 0x3F), Italic = italic, Bold = bold });
                                 i += 4;
                             } else {
                                 plan.Elements.Add(new LayoutPlan.Element { Codepoint = 0xFFFE });
@@ -304,7 +356,10 @@ namespace QuoteOfTheLobby {
                             }
                         }
                     } else if (payload.Type == PayloadType.EmphasisItalic) {
-                        italic = ((EmphasisItalicPayload)payload).IsEnabled;
+                        italic = ((EmphasisItalicPayload)payload).IsEnabled ? _italicness : 0;
+                    } else if (payload.Type == PayloadType.Unknown) {
+                        if (payload is InternalBoldPayload boldPayload)
+                            bold = boldPayload.IsEnabled ? _boldness : 0;
                     }
                 }
 
@@ -367,13 +422,18 @@ namespace QuoteOfTheLobby {
                     }
                     if (from >= to)
                         continue;
-                    var width = plan.Elements[to - 1].X + plan.Elements[to - 1].Glyph.BoundingWidth - plan.Elements[from].X;
-                    plan.Width = Math.Max(plan.Width, width);
+                    var right = 0;
+                    for (var j = from; j < to; j++) {
+                        var e = plan.Elements[j];
+                        right = Math.Max(right, e.X + e.Glyph.BoundingWidth + (int)Math.Ceiling(e.Bold + Math.Abs(e.Italic)));
+                        plan.Height = Math.Max(plan.Height, e.Y + e.Glyph.BoundingHeight);
+                    }
+                    plan.Width = Math.Max(plan.Width, right - plan.Elements[from].X);
                     int offsetX;
                     if (_horizontalAlignment == HorizontalAlignment.Center)
-                        offsetX = (_maxWidth - width) / 2;
+                        offsetX = (_maxWidth - right) / 2;
                     else if (_horizontalAlignment == HorizontalAlignment.Right)
-                        offsetX = _maxWidth - width;
+                        offsetX = _maxWidth - right;
                     else if (_horizontalAlignment == HorizontalAlignment.Left)
                         offsetX = 0;
                     else

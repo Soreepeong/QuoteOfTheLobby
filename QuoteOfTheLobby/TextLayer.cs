@@ -1,4 +1,5 @@
 ﻿using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Logging;
@@ -77,38 +78,79 @@ namespace QuoteOfTheLobby {
         }
 
         private void ResolveText() {
-            if (!_needRefresh && (Config.CycleInterval == 0 || (Config.CycleInterval > 0 && DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - _lastRefresh < 1000 * Config.CycleInterval)))
+            if (!_needRefresh && (Config.CycleInterval == 0 || Config.Type != Configuration.TextLayerType.RandomDialogue || (Config.CycleInterval > 0 && DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - _lastRefresh < 1000 * Config.CycleInterval)))
                 return;
 
             _needRefresh = false;
             _lastRefresh = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            TextureLayer newTextureLayer;
             if (Config.Type == Configuration.TextLayerType.RandomDialogue) {
-                _textures.Add(new TextureLayer(_reader.GetRandomQuote(Config.Language)));
-                if (Config.FadeDuration > 0 && _textures.Count >= 2) {
-                    for (var i = 0; i < _textures.Count - 1; ++i) {
-                        _textures[i].Cancel();
-                        if (_textures[i].Texture == null || Config.FadeDuration <= 0) {
-                            _textures.RemoveAt(i);
-                            --i;
-                            continue;
-                        }
-                    }
-                }
+                newTextureLayer = new TextureLayer(_reader.GetRandomQuote(Config.Language));
+
             } else if (Config.Type == Configuration.TextLayerType.DefaultDatacenter) {
                 try {
                     var cfg = File.ReadAllText(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\My Games\\FINAL FANTASY XIV - A Realm Reborn\\FFXIV.cfg");
                     uint worldId = uint.Parse(Regex.Match(cfg, @"WorldId\s+([0-9]+)").Groups[1].Value);
                     var worldName = _reader.GetDatacenterNameFromWorldId(worldId)!;
-                    if (_textures.Count == 0 || _textures[0].Text.TextValue != worldName.TextValue) {
-                        _textures.Clear();
-                        _textures.Add(new TextureLayer(worldName));
-                    }
+                    if (_textures.Count > 0 && _textures[^1].Text.TextValue == worldName.TextValue)
+                        return;
+
+                    newTextureLayer = new TextureLayer(worldName);
                 } catch (Exception e) {
                     PluginLog.Warning(e, "Failed to read last world ID");
+                    return;
                 }
-            } else if (Config.Type == Configuration.TextLayerType.FixedText) {
-                _textures.Clear();
-                _textures.Add(new TextureLayer(new SeStringBuilder().AddText(Config.FixedText).Build()));
+
+            } else if (Config.Type == Configuration.TextLayerType.StickyNote) {
+                var builder = new SeStringBuilder();
+
+                bool italic = false, bold = false;
+                var text = Config.StickyNote.Replace("\r\n", "\n");
+                for (int i = 0, i_ = text.Length; i < i_; ++i) {
+                    int remaining = text.Length - i - 1;
+                    if (text[i] == '\\' && remaining > 0) {
+                        if (text[i + 1] == '\n')
+                            builder.Add(new NewLinePayload());
+                        else
+                            builder.AddText(text.Substring(i + 1, 1));
+                        i++;
+                    } else if (text[i] == '*') {
+                        if (remaining > 0 && text[i + 1] == '*') {
+                            bold = !bold;
+                            if (bold)
+                                builder.Add(Fdt.InternalBoldPayload.BoldOn);
+                            else
+                                builder.Add(Fdt.InternalBoldPayload.BoldOff);
+                            i++;
+                        } else {
+                            italic = !italic;
+                            if (italic)
+                                builder.AddItalicsOn();
+                            else
+                                builder.AddItalicsOff();
+                        }
+                    } else if (text[i] == '\n') {
+                        builder.Add(new NewLinePayload());
+                    } else {
+                        builder.AddText(text.Substring(i, 1));
+                    }
+                }
+                newTextureLayer = new TextureLayer(builder.Build());
+            } else {
+                PluginLog.Debug("Invalid Config.Type specified");
+                return;
+            }
+
+            _textures.Add(newTextureLayer);
+            if (_textures.Count >= 2) {
+                for (var i = 0; i < _textures.Count - 1; ++i) {
+                    _textures[i].Cancel();
+                    if (_textures[i].Texture == null) {
+                        _textures.RemoveAt(i);
+                        --i;
+                        continue;
+                    }
+                }
             }
         }
 
@@ -129,9 +171,11 @@ namespace QuoteOfTheLobby {
                 if (t.BuilderThread == null) {
                     var r = new TextTextureGenerator(_reader.FontTextureData, _reader.Fdts[Config.FontIndex])
                         .WithText(t.Text)
+                        .WithItalicness(Config.ItalicWidth)
+                        .WithBoldness(Config.BoldWeight)
                         .WithBorderWidth(Config.BorderWidth)
                         .WithBorderStrength(Config.BorderStrength)
-                        .WithMaxWidth((int)(_lastWindowSize.X * (1 - Config.HorizontalMargin)))
+                        .WithMaxWidth((int)(_lastWindowSize.X * (1 - Config.HorizontalMargin) / Config.Zoom))
                         .WithBorderColor(Config.ColorBorder)
                         .WithFillColor(Config.ColorFill)
                         .WithHorizontalAlignment(Config.HorizontalAlignment)
@@ -150,8 +194,8 @@ namespace QuoteOfTheLobby {
 
                 t.Texture = _uiBuilder.LoadImageRaw(res.Buffer!, res.Width, res.Height, 4);
                 t.Cancel();
-                if (Config.FadeDuration > 0 && _textures.Count > 1) {
-                    t.FadeInDuration = (long)(1000 * Config.FadeDuration);
+                if (_textures.Count > 1) {
+                    t.FadeInDuration = Config.Type == Configuration.TextLayerType.RandomDialogue ? (long)(1000 * Config.FadeDuration) : 0;
                     t.FadeInAt = now + t.FadeInDuration;
                 }
             }
@@ -163,7 +207,7 @@ namespace QuoteOfTheLobby {
 
                 if (i < _textures.Count - 1 && _textures[_textures.Count - 1].Texture != null) {
                     if (t.FadeOutAt == 0) {
-                        t.FadeOutDuration = (long)(1000 * Config.FadeDuration);
+                        t.FadeOutDuration = Config.Type == Configuration.TextLayerType.RandomDialogue ? (long)(1000 * Config.FadeDuration) : 0;
                         t.FadeOutAt = Math.Max(_textures[i].FadeInAt, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) + _textures[i].FadeOutDuration;
                     }
                 }
@@ -183,32 +227,41 @@ namespace QuoteOfTheLobby {
                 else
                     continue;
 
-                int xd = (int)(rc.Width * Config.HorizontalMargin / 2);
+                var xd = rc.Width * Config.HorizontalMargin / 2;
                 if (Config.HorizontalAlignment == Fdt.LayoutBuilder.HorizontalAlignment.Center)
-                    xd = (rc.Width - t.Texture.Width) / 2;
+                    xd = (rc.Width - t.Texture.Width * Config.Zoom) / 2;
                 else if (Config.HorizontalAlignment == Fdt.LayoutBuilder.HorizontalAlignment.Right)
-                    xd = rc.Width - t.Texture.Width - xd;
+                    xd = rc.Width - t.Texture.Width * Config.Zoom - xd;
 
-                var yd = (int)(rc.Height * Config.VerticalPosition);
+                var yd = rc.Height * Config.VerticalPosition;
                 if (Config.VerticalSnap == Configuration.VerticalSnapType.Middle)
-                    yd -= t.Texture.Height / 2;
+                    yd -= t.Texture.Height * Config.Zoom / 2;
                 else if (Config.VerticalSnap == Configuration.VerticalSnapType.Bottom)
-                    yd -= t.Texture.Height;
-                yd = Math.Max(0, Math.Min(rc.Height - t.Texture.Height, yd));
+                    yd -= t.Texture.Height * Config.Zoom;
+                yd = Math.Max(0, Math.Min(rc.Height - t.Texture.Height * Config.Zoom, yd));
 
                 if (Config.ColorBackground.W > 0) {
                     ImGui.GetWindowDrawList().AddRectFilled(
                         new Vector2(
-                            rc.Left + xd - Config.BackgroundPadding,
-                            rc.Top + yd - Config.BackgroundPadding),
-                        new Vector2(rc.Left + xd + t.Texture.Width + Config.BackgroundPadding,
-                            rc.Top + yd + t.Texture.Height + Config.BackgroundPadding),
-                        ImGui.ColorConvertFloat4ToU32(new Vector4(Config.ColorBackground.X, Config.ColorBackground.Y, Config.ColorBackground.Z, Config.ColorBackground.W * opacity)));
+                            (int)(rc.Left + xd - Config.BackgroundPadding),
+                            (int)(rc.Top + yd - Config.BackgroundPadding)
+                        ),
+                        new Vector2(
+                            (int)(rc.Left + xd + t.Texture.Width * Config.Zoom + Config.BackgroundPadding),
+                            (int)(rc.Top + yd + t.Texture.Height * Config.Zoom + Config.BackgroundPadding)
+                        ),
+                        ImGui.ColorConvertFloat4ToU32(new Vector4(
+                            Config.ColorBackground.X,
+                            Config.ColorBackground.Y,
+                            Config.ColorBackground.Z,
+                            Config.ColorBackground.W * opacity
+                        ))
+                    );
                 }
 
                 ImGui.GetWindowDrawList().AddImage(t.Texture.ImGuiHandle,
-                    new Vector2(rc.Left + xd, rc.Top + yd),
-                    new Vector2(rc.Left + xd + t.Texture.Width, rc.Top + yd + t.Texture.Height),
+                    new Vector2((int)(rc.Left + xd), (int)(rc.Top + yd)),
+                    new Vector2((int)(rc.Left + xd + t.Texture.Width * Config.Zoom), (int)(rc.Top + yd + t.Texture.Height * Config.Zoom)),
                     Vector2.Zero, Vector2.One, (uint)(0xFF * opacity) << 24 | 0xFFFFFF);
             }
         }
@@ -226,7 +279,7 @@ namespace QuoteOfTheLobby {
                 ImGui.SameLine();
                 ImGuiComponents.HelpMarker(
                     "Set to blank to display at all times.\n" +
-                    "You can enter multiple values separated by comma(,).\n" + 
+                    "You can enter multiple values separated by comma(,).\n" +
                     "Refer to /xldev > Dalamud > Open Data Window > Addon Inspector to decide which Addon(in-game window) to show text with.");
                 ImGui.Combo("Type", ref Config.TypeVal, Constants.TextLayerTypeNames, Constants.TextLayerTypeNames.Length);
                 switch (Config.Type) {
@@ -236,38 +289,45 @@ namespace QuoteOfTheLobby {
                         ImGui.SliderInt("Cycle Interval", ref Config.CycleInterval, 0, 30);
                         break;
                     }
-                    case Configuration.TextLayerType.FixedText: {
-                        _needRefresh |= ImGui.InputTextMultiline("Text", ref Config.FixedText, 32768, new Vector2(ImGui.GetWindowWidth(), ImGui.GetTextLineHeight() * 4));
+                    case Configuration.TextLayerType.StickyNote: {
+                        ImGui.Text("Text");
+                        ImGui.SameLine();
+                        ImGuiComponents.HelpMarker(
+                            "Use ** to toggle bold.\n" +
+                            "Use * to toggle italics.\n" +
+                            "Use \\* to show *.\n" +
+                            "Use \\\\ to show *.");
+                        _needRefresh |= ImGui.InputTextMultiline("Text", ref Config.StickyNote, 32768, new Vector2(ImGui.GetWindowWidth(), ImGui.GetTextLineHeight() * 4));
                         break;
                     }
                 }
 
-                bool relayoutRequired = false;
-                relayoutRequired |= ImGui.Combo("Horizontal Alignment", ref Config.HorizontalAlignmentInt, Constants.HorizontalAlignmentNames, Constants.HorizontalAlignmentNames.Length);
+                _needRefresh |= ImGui.Combo("Horizontal Alignment", ref Config.HorizontalAlignmentInt, Constants.HorizontalAlignmentNames, Constants.HorizontalAlignmentNames.Length);
                 ImGui.Combo("Vertical Snap", ref Config.VerticalSnapInt, Constants.VerticalSnapNames, Constants.VerticalSnapNames.Length);
-                relayoutRequired |= ImGui.SliderFloat("Horizontal Margin", ref Config.HorizontalMargin, 0.0f, 1f);
-                ImGui.SliderFloat("Vertical Position", ref Config.VerticalPosition, 0.0f, 1f);
+                _needRefresh |= ImGui.SliderFloat("Horizontal Margin", ref Config.HorizontalMargin, 0f, 1f);
+                ImGui.SliderFloat("Vertical Position", ref Config.VerticalPosition, 0f, 1f);
                 ImGui.SliderInt("Background Padding", ref Config.BackgroundPadding, 0, 16);
-                relayoutRequired |= ImGui.Combo("Font", ref Config.FontIndex, Constants.FontNames, Constants.FontNames.Length);
-                relayoutRequired |= ImGui.SliderFloat("Border Width", ref Config.BorderWidth, 0, 8f);
-                relayoutRequired |= ImGui.SliderFloat("Border Strength", ref Config.BorderStrength, -4f, 4f);
+                _needRefresh |= ImGui.SliderFloat("Zoom", ref Config.Zoom, 0.2f, 4f);
+                ImGui.SameLine();
+                if (ImGui.Button("Reset"))
+                    Config.Zoom = 1f;
+                _needRefresh |= ImGui.Combo("Font", ref Config.FontIndex, Constants.FontNames, Constants.FontNames.Length);
+                _needRefresh |= ImGui.SliderFloat("Bold Weight", ref Config.BoldWeight, 0f, 8f);
+                _needRefresh |= ImGui.SliderFloat("Italic Width", ref Config.ItalicWidth, -8f, 8f);
+                _needRefresh |= ImGui.SliderFloat("Border Width", ref Config.BorderWidth, 0f, 8f);
+                _needRefresh |= ImGui.SliderFloat("Border Strength", ref Config.BorderStrength, -4f, 4f);
 
-                relayoutRequired |= ColorPickerWithPalette(1, "Fill Color", ref Config.ColorFill, ImGuiColorEditFlags.AlphaBar);
+                _needRefresh |= ColorPickerWithPalette(1, "Fill Color", ref Config.ColorFill, ImGuiColorEditFlags.AlphaBar);
                 ImGui.SameLine();
                 ImGui.Text("Fill Color");
                 ImGui.SameLine();
-                relayoutRequired |= ColorPickerWithPalette(2, "Border Color", ref Config.ColorBorder, ImGuiColorEditFlags.AlphaBar);
+                _needRefresh |= ColorPickerWithPalette(2, "Border Color", ref Config.ColorBorder, ImGuiColorEditFlags.AlphaBar);
                 ImGui.SameLine();
                 ImGui.Text("Border Color");
                 ImGui.SameLine();
                 ColorPickerWithPalette(3, "Background Color", ref Config.ColorBackground, ImGuiColorEditFlags.AlphaBar);
                 ImGui.SameLine();
                 ImGui.Text("Background Color");
-
-                if (relayoutRequired || _needRefresh) {
-                    foreach (var t in _textures)
-                        t.ClearTexture();
-                }
             } catch (Exception ex) {
                 PluginLog.Error(ex, "?");
             }
