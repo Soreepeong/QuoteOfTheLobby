@@ -162,7 +162,6 @@ namespace QuoteOfTheLobby {
                     } finally { ImGui.End(); }
                 else {
                     Save();
-                    _config.ConfigVisible = false;
                 }
             }
 

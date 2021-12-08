@@ -51,7 +51,7 @@ namespace QuoteOfTheLobby {
 
             public float BorderStrength = 1;
 
-            public float FadeDuration = 3f;
+            public float FadeDuration = 1f;
 
             public float BoldWeight = 1f;
 
