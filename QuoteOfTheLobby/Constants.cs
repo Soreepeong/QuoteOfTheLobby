@@ -20,7 +20,7 @@ namespace QuoteOfTheLobby {
 			"Top", "Middle", "Bottom",
 		};
 		public static readonly string[] TextLayerTypeNames = {
-			"Random Quote", "Default Datacenter",
+			"Random Quote", "Default Datacenter", "Fixed Text",
 		};
 		public static readonly string[] LanguageNames = { 
 			"Japanese",

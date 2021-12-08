@@ -1,20 +1,20 @@
 ﻿using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Logging;
 using ImGuiNET;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Numerics;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace QuoteOfTheLobby {
     public class TextLayer : IDisposable {
-        private readonly Plugin _plugin;
+        private readonly GameResourceReader _reader;
+        private readonly UiBuilder _uiBuilder;
+
         public readonly Configuration.TextLayerConfiguration Config;
         public bool Deleted { get; internal set; }
 
@@ -53,10 +53,11 @@ namespace QuoteOfTheLobby {
         private Vector2 _lastWindowSize = new();
         private long _lastRefresh = 0;
 
-        public TextLayer(Plugin plugin, Configuration.TextLayerConfiguration? config = null) {
+        public TextLayer(GameResourceReader reader, UiBuilder uiBuilder, Configuration.TextLayerConfiguration? config = null) {
+            _reader = reader;
+            _uiBuilder = uiBuilder;
             if (config == null)
                 config = new Configuration.TextLayerConfiguration();
-            _plugin = plugin;
             Config = config!;
         }
 
@@ -82,7 +83,7 @@ namespace QuoteOfTheLobby {
             _needRefresh = false;
             _lastRefresh = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             if (Config.Type == Configuration.TextLayerType.RandomDialogue) {
-                _textures.Add(new TextureLayer(_plugin.GetRandomQuoteReader(Config.Language).GetRandomQuote()!));
+                _textures.Add(new TextureLayer(_reader.GetRandomQuote(Config.Language)));
                 if (Config.FadeDuration > 0 && _textures.Count >= 2) {
                     for (var i = 0; i < _textures.Count - 1; ++i) {
                         _textures[i].Cancel();
@@ -97,7 +98,7 @@ namespace QuoteOfTheLobby {
                 try {
                     var cfg = File.ReadAllText(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\My Games\\FINAL FANTASY XIV - A Realm Reborn\\FFXIV.cfg");
                     uint worldId = uint.Parse(Regex.Match(cfg, @"WorldId\s+([0-9]+)").Groups[1].Value);
-                    var worldName = _plugin.GetDatacenterNameFromWorldId(worldId)!;
+                    var worldName = _reader.GetDatacenterNameFromWorldId(worldId)!;
                     if (_textures.Count == 0 || _textures[0].Text.TextValue != worldName.TextValue) {
                         _textures.Clear();
                         _textures.Add(new TextureLayer(worldName));
@@ -105,6 +106,9 @@ namespace QuoteOfTheLobby {
                 } catch (Exception e) {
                     PluginLog.Warning(e, "Failed to read last world ID");
                 }
+            } else if (Config.Type == Configuration.TextLayerType.FixedText) {
+                _textures.Clear();
+                _textures.Add(new TextureLayer(new SeStringBuilder().AddText(Config.FixedText).Build()));
             }
         }
 
@@ -123,7 +127,7 @@ namespace QuoteOfTheLobby {
                     continue;
 
                 if (t.BuilderThread == null) {
-                    var r = new TextTextureGenerator(_plugin.FontTextureData, _plugin.Fdts[Config.FontIndex])
+                    var r = new TextTextureGenerator(_reader.FontTextureData, _reader.Fdts[Config.FontIndex])
                         .WithText(t.Text)
                         .WithBorderWidth(Config.BorderWidth)
                         .WithBorderStrength(Config.BorderStrength)
@@ -144,7 +148,7 @@ namespace QuoteOfTheLobby {
                 if (t.FadeOutAt > 0)  // abandoned
                     continue;
 
-                t.Texture = _plugin.PluginInterface.UiBuilder.LoadImageRaw(res.Buffer!, res.Width, res.Height, 4);
+                t.Texture = _uiBuilder.LoadImageRaw(res.Buffer!, res.Width, res.Height, 4);
                 t.Cancel();
                 if (Config.FadeDuration > 0 && _textures.Count > 1) {
                     t.FadeInDuration = (long)(1000 * Config.FadeDuration);
@@ -211,21 +215,31 @@ namespace QuoteOfTheLobby {
 
         public void DrawConfigElements() {
             try {
-                if (ImGui.Button("Shuffle")) {
+                if (ImGui.Button("Shuffle"))
                     RefreshText();
-                }
                 ImGui.SameLine();
-                if (ImGui.Button("Remove")) {
+                if (ImGui.Button("Remove"))
                     Deleted = true;
-                }
 
                 ImGui.InputText("Name", ref Config.Name, 64);
                 ImGui.InputText("Visible With", ref Config.VisibleWith, 64);
+                ImGui.SameLine();
+                ImGuiComponents.HelpMarker(
+                    "Set to blank to display at all times.\n" +
+                    "You can enter multiple values separated by comma(,).\n" + 
+                    "Refer to /xldev > Dalamud > Open Data Window > Addon Inspector to decide which Addon(in-game window) to show text with.");
                 ImGui.Combo("Type", ref Config.TypeVal, Constants.TextLayerTypeNames, Constants.TextLayerTypeNames.Length);
-                if (Config.Type == Configuration.TextLayerType.RandomDialogue) {
-                    ImGui.Combo("Language", ref Config.LanguageVal, Constants.LanguageNames, Constants.LanguageNames.Length);
-                    ImGui.SliderFloat("Crossfade Duration", ref Config.FadeDuration, 0f, 5f);
-                    ImGui.SliderInt("Cycle Interval", ref Config.CycleInterval, 0, 30);
+                switch (Config.Type) {
+                    case Configuration.TextLayerType.RandomDialogue: {
+                        _needRefresh |= ImGui.Combo("Language", ref Config.LanguageVal, Constants.LanguageNames, Constants.LanguageNames.Length);
+                        ImGui.SliderFloat("Crossfade Duration", ref Config.FadeDuration, 0f, 5f);
+                        ImGui.SliderInt("Cycle Interval", ref Config.CycleInterval, 0, 30);
+                        break;
+                    }
+                    case Configuration.TextLayerType.FixedText: {
+                        _needRefresh |= ImGui.InputTextMultiline("Text", ref Config.FixedText, 32768, new Vector2(ImGui.GetWindowWidth(), ImGui.GetTextLineHeight() * 4));
+                        break;
+                    }
                 }
 
                 bool relayoutRequired = false;
@@ -250,7 +264,7 @@ namespace QuoteOfTheLobby {
                 ImGui.SameLine();
                 ImGui.Text("Background Color");
 
-                if (relayoutRequired) {
+                if (relayoutRequired || _needRefresh) {
                     foreach (var t in _textures)
                         t.ClearTexture();
                 }

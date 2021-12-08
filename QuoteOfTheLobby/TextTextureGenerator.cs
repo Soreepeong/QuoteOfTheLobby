@@ -1,12 +1,8 @@
 ﻿using Dalamud.Game.Text.SeStringHandling;
-using Dalamud.Logging;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace QuoteOfTheLobby {
     public class TextTextureGenerator {

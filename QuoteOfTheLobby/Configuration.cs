@@ -16,6 +16,7 @@ namespace QuoteOfTheLobby {
         public enum TextLayerType {
             RandomDialogue,
             DefaultDatacenter,
+            FixedText,
         }
 
         public enum VerticalSnapType {
@@ -80,7 +81,11 @@ namespace QuoteOfTheLobby {
                 get { return (VerticalSnapType)VerticalSnapInt; }
                 set { VerticalSnapInt = (int)value; }
             }
+
+            public string FixedText = "Text";
         }
+
+        public bool ConfigVisible = true;
 
         public List<TextLayerConfiguration> TextLayers { get; set; } = new();
 
