@@ -93,6 +93,8 @@ namespace QuoteOfTheLobby {
 
         public bool ConfigVisible = true;
 
+        public bool ForceShowAllLayers = false;
+
         public List<TextLayerConfiguration> TextLayers { get; set; } = new();
 
         // the below exist just to make saving less cumbersome

@@ -135,6 +135,8 @@ namespace QuoteOfTheLobby {
                             foreach (var e in _layers.Values)
                                 e.RefreshText();
                         }
+                        ImGui.SameLine();
+                        ImGui.Checkbox("Ignore Visible With", ref _config.ForceShowAllLayers);
                         ImGui.BeginTabBar("Text Layers", ImGuiTabBarFlags.AutoSelectNewTabs);
                         try {
                             SortedSet<Guid>? dels = null;
@@ -165,26 +167,17 @@ namespace QuoteOfTheLobby {
                 }
             }
 
-            ImGui.SetNextWindowPos(new Vector2(rc.Left, rc.Top));
-            ImGui.SetNextWindowSize(new Vector2(rc.Width, rc.Height), ImGuiCond.Always);
-            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
             try {
-                bool v = true;
-                if (ImGui.Begin("Quote of the Lobby Text", ref v, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoInputs))
-                    try {
-                        foreach (var e in _layers.Values) {
-                            if (e.Config.VisibleWith == "" || e.Config.VisibleWith.Split(",").Any(x => _visibilityManager.IsVisible(x.Trim())))
-                                e.DrawText(rc);
-                            else
-                                e.RefreshText(true);
-                        }
-                    } catch (Exception ex) {
-                        PluginLog.Error(ex, "?");
-                    } finally {
-                        ImGui.End();
-                    }
-            } finally {
-                ImGui.PopStyleVar();
+                foreach (var e in _layers.Values) {
+                    if (e.Config.VisibleWith == ""
+                        || e.Config.VisibleWith.Split(",").Any(x => _visibilityManager.IsVisible(x.Trim()))
+                        || _config.ForceShowAllLayers)
+                        e.DrawText(rc);
+                    else
+                        e.RefreshText(true);
+                }
+            } catch (Exception ex) {
+                PluginLog.Error(ex, "?");
             }
         }
 

@@ -155,10 +155,12 @@ namespace QuoteOfTheLobby {
         }
 
         public void DrawText(Native.RECT rc) {
-            if (_lastWindowSize != ImGui.GetWindowSize())
+            if (_lastWindowSize.X != rc.Width || _lastWindowSize.Y != rc.Height) {
                 foreach (var t in _textures)
                     t.ClearTexture();
-            _lastWindowSize = ImGui.GetWindowSize();
+                _lastWindowSize.X = rc.Width;
+                _lastWindowSize.Y = rc.Height;
+            }
 
             ResolveText();
 
@@ -241,7 +243,7 @@ namespace QuoteOfTheLobby {
                 yd = Math.Max(0, Math.Min(rc.Height - t.Texture.Height * Config.Zoom, yd));
 
                 if (Config.ColorBackground.W > 0) {
-                    ImGui.GetWindowDrawList().AddRectFilled(
+                    ImGui.GetForegroundDrawList().AddRectFilled(
                         new Vector2(
                             (int)(rc.Left + xd - Config.BackgroundPadding),
                             (int)(rc.Top + yd - Config.BackgroundPadding)
@@ -259,7 +261,7 @@ namespace QuoteOfTheLobby {
                     );
                 }
 
-                ImGui.GetWindowDrawList().AddImage(t.Texture.ImGuiHandle,
+                ImGui.GetForegroundDrawList().AddImage(t.Texture.ImGuiHandle,
                     new Vector2((int)(rc.Left + xd), (int)(rc.Top + yd)),
                     new Vector2((int)(rc.Left + xd + t.Texture.Width * Config.Zoom), (int)(rc.Top + yd + t.Texture.Height * Config.Zoom)),
                     Vector2.Zero, Vector2.One, (uint)(0xFF * opacity) << 24 | 0xFFFFFF);
