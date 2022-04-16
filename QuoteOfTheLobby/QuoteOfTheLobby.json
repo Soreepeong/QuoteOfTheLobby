@@ -5,7 +5,7 @@
   "Description": "Displays a random dialogue, and/or the datacenter you'll be connecting to when you press GAME START.",
   "InternalName": "quoteOfTheLobby",
   "ApplicableVersion": "any",
-  "RepoUrl": "https://github.com/Soreepeong/QuoteOfTheLobby.json",
+  "RepoUrl": "https://github.com/Soreepeong/QuoteOfTheLobby",
   "Tags": [
     "qotd",
     "lobby",
