@@ -62,7 +62,7 @@ namespace QuoteOfTheLobby {
                 BoldWeight = 1f,
                 ItalicWidth = 4f,
                 BorderWidth = 4f,
-                FontIndex = 14,
+                FontIndex = 15,
                 StickyNote = (
                     "**Quote of the Lobby** is now ready.\n" +
                     "Refer to the *config window* to get started."
@@ -72,7 +72,7 @@ namespace QuoteOfTheLobby {
                 Name = "Default Datacenter",
                 Type = Configuration.TextLayerType.DefaultDatacenter,
                 VerticalPosition = 0.95f,
-                FontIndex = 11,
+                FontIndex = 12,
             });
             _config.TextLayers.Add(new Configuration.TextLayerConfiguration() {
                 Name = "Random Quote",
