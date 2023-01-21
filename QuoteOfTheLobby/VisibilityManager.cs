@@ -43,8 +43,8 @@ namespace QuoteOfTheLobby {
                 var hideNamedUiElementAddress = sigScanner.ScanText(HideNamedUiElementSignature);
                 var showNamedUiElementAddress = sigScanner.ScanText(ShowNamedUiElementSignature);
 
-                _disposableList.Add(_hideHook = new Hook<HideShowNamedUiElementDelegate>(hideNamedUiElementAddress, this.HideNamedUiElementDetour));
-                _disposableList.Add(_showHook = new Hook<HideShowNamedUiElementDelegate>(showNamedUiElementAddress, this.ShowNamedUiElementDetour));
+                _disposableList.Add(_hideHook = Hook<HideShowNamedUiElementDelegate>.FromAddress(hideNamedUiElementAddress, this.HideNamedUiElementDetour));
+                _disposableList.Add(_showHook = Hook<HideShowNamedUiElementDelegate>.FromAddress(showNamedUiElementAddress, this.ShowNamedUiElementDetour));
                 _hideHook.Enable();
                 _showHook.Enable();
 
@@ -68,7 +68,9 @@ namespace QuoteOfTheLobby {
         private unsafe IntPtr ShowNamedUiElementDetour(IntPtr pThis) {
             var res = _showHook.Original(pThis);
             var windowName = Marshal.PtrToStringUTF8(pThis + 8)!;
+#if DEBUG
             PluginLog.Debug($"Show: {windowName} from {pThis}");
+#endif
             _gameLayerVisibility[windowName] = true;
             return res;
         }
@@ -76,7 +78,9 @@ namespace QuoteOfTheLobby {
         private unsafe IntPtr HideNamedUiElementDetour(IntPtr pThis) {
             var res = _hideHook.Original(pThis);
             var windowName = Marshal.PtrToStringUTF8(pThis + 8)!;
+#if DEBUG
             PluginLog.Debug($"Hide: {windowName} from {pThis}");
+#endif
             _gameLayerVisibility[windowName] = false;
             return res;
         }

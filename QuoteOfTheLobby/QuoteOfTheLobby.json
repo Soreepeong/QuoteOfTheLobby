@@ -3,12 +3,14 @@
   "Name": "Quote of the Lobby",
   "Punchline": "Simmer does the light before every login.",
   "Description": "Displays a random dialogue, and/or the datacenter you'll be connecting to when you press GAME START.",
-  "InternalName": "quoteOfTheLobby",
-  "ApplicableVersion": "any",
-  "RepoUrl": "https://github.com/Soreepeong/QuoteOfTheLobby.json",
+  "Changelog": null,
   "Tags": [
     "qotd",
     "lobby",
     "datacenter"
-  ]
+  ],
+  "CategoryTags": null,
+  "RepoUrl": "https://github.com/53m1k0l0n/QuoteOfTheLobby",
+  "ImageUrls": null,
+  "IconUrl": null
 }
