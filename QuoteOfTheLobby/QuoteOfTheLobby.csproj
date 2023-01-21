@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Authors></Authors>
     <Company></Company>
-    <Version>1.0.0.8</Version>
+    <Version>1.0.0.9</Version>
     <Description>Displays a random dialogue, and/or the datacenter you'll be connecting to when you press GAME START.</Description>
     <Copyright></Copyright>
     <PackageProjectUrl>https://github.com/53m1k0l0n/QuoteOfTheLobby</PackageProjectUrl>
@@ -53,6 +53,12 @@
       <HintPath>$(DalamudLibPath)Lumina.Excel.dll</HintPath>
       <Private>false</Private>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Image\icon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
