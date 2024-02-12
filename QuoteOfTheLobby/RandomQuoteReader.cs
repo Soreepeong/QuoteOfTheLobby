@@ -1,15 +1,16 @@
-﻿using Dalamud.Data;
-using Dalamud.Game.Text.SeStringHandling;
+﻿using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.IoC;
+using Dalamud.Plugin.Services;
 using Dalamud.Utility;
 using System;
 using System.Linq;
 
-namespace QuoteOfTheLobby {
+namespace QuoteOfTheLobby
+{
     public class RandomQuoteReader {
         private static readonly string[] ValidDialogueSuffixes = { ".", "!", "?", "！", "？", "。", "…" };
 
-        private readonly DataManager _dataManager;
+        private readonly IDataManager _dataManager;
         private readonly Random _random = new();
 
         private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.GeneratedSheets.InstanceContentTextData> _instanceContentTextData;
@@ -18,7 +19,7 @@ namespace QuoteOfTheLobby {
         private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.GeneratedSheets.NpcYell> _npcYell;
 
         public RandomQuoteReader(
-            [RequiredVersion("1.0")] DataManager dataManager,
+            [RequiredVersion("1.0")] IDataManager dataManager,
             Dalamud.ClientLanguage language) {
             _dataManager = dataManager;
             _instanceContentTextData = _dataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.InstanceContentTextData>(language)!;

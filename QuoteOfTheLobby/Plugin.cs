@@ -1,18 +1,16 @@
-﻿using Dalamud;
-using Dalamud.Data;
-using Dalamud.Game;
-using Dalamud.Game.ClientState;
-using Dalamud.Game.Command;
+﻿using Dalamud.Game;
 using Dalamud.IoC;
 using Dalamud.Logging;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using ImGuiNET;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 
-namespace QuoteOfTheLobby {
+namespace QuoteOfTheLobby
+{
     public unsafe sealed class Plugin : IDalamudPlugin {
         public string Name => "Quote of the Lobby";
 
@@ -28,10 +26,11 @@ namespace QuoteOfTheLobby {
 
         public Plugin(
             [RequiredVersion("1.0")] DalamudPluginInterface pluginInterface,
-            [RequiredVersion("1.0")] CommandManager commandManager,
-            [RequiredVersion("1.0")] DataManager dataManager,
-            [RequiredVersion("1.0")] ClientState clientState,
-            [RequiredVersion("1.0")] SigScanner sigScanner) {
+            [RequiredVersion("1.0")] ICommandManager commandManager,
+            [RequiredVersion("1.0")] IDataManager dataManager,
+            [RequiredVersion("1.0")] IClientState clientState,
+            [RequiredVersion("1.0")] ISigScanner sigScanner,
+            [RequiredVersion("1.0")] IGameInteropProvider gameInteropProvider) {
             try {
                 _pluginInterface = pluginInterface;
 
@@ -39,7 +38,7 @@ namespace QuoteOfTheLobby {
                 _config.Initialize(_pluginInterface);
 
                 _reader = new(dataManager, clientState);
-                _disposableList.Add(_visibilityManager = new(sigScanner));
+                _disposableList.Add(_visibilityManager = new(sigScanner, gameInteropProvider));
 
                 if (_config.TextLayers.Count == 0)
                     SetupDefaultTextLayers();
