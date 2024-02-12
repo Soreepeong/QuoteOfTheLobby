@@ -4,7 +4,8 @@ using System.Collections.Generic;
 using System.Numerics;
 using System.Threading;
 
-namespace QuoteOfTheLobby {
+namespace QuoteOfTheLobby
+{
     public class TextTextureGenerator {
         private readonly List<byte[]> _textureData;
         private readonly Fdt _fdt;

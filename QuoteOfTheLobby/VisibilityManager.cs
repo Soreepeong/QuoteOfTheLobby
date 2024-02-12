@@ -1,13 +1,15 @@
 ﻿using Dalamud.Game;
 using Dalamud.Hooking;
 using Dalamud.Logging;
+using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 
-namespace QuoteOfTheLobby {
+namespace QuoteOfTheLobby
+{
     public unsafe class VisibilityManager : IDisposable {
         private static readonly string HideNamedUiElementSignature = "40 57 48 83 EC 20 48 8B F9 48 8B 89 C8 00 00 00 48 85 C9 0F ?? ?? ?? ?? ?? 8B 87 B0 01 00 00 C1 E8 07 A8 01";
         private static readonly string ShowNamedUiElementSignature = "40 53 48 83 EC 40 48 8B 91 C8 00 00 00 48 8B D9 48 85 D2";
@@ -22,7 +24,7 @@ namespace QuoteOfTheLobby {
 
         private readonly List<IDisposable> _disposableList = new();
 
-        public VisibilityManager(SigScanner sigScanner) {
+        public VisibilityManager(ISigScanner sigScanner, IGameInteropProvider gameInteropProvider) {
             try {
                 var getSingletonAddr = sigScanner.ScanText("E8 ?? ?? ?? ?? 41 B8 01 00 00 00 48 8D 15 ?? ?? ?? ?? 48 8B 48 20 E8 ?? ?? ?? ?? 48 8B CF");
                 var stage = Marshal.GetDelegateForFunctionPointer<GetAtkStageSingleton>(getSingletonAddr)();
@@ -30,25 +32,26 @@ namespace QuoteOfTheLobby {
                 var unitManagers = &stage->RaptureAtkUnitManager->AtkUnitManager.DepthLayerOneList;
                 for (var i = 0; i < UnitListCount; i++) {
                     var unitManager = &unitManagers[i];
-                    var unitBaseArray = &unitManager->AtkUnitEntries;
+                    var unitBaseArray = unitManager->EntriesSpan;
                     for (var j = 0; j < unitManager->Count; j++) {
                         var unitBase = unitBaseArray[j];
-                        var name = Marshal.PtrToStringAnsi(new IntPtr(unitBase->Name));
+                        var name = Marshal.PtrToStringAnsi(new IntPtr(unitBase.Value->Name));
                         if (name == null)
                             continue;
-                        _gameLayerVisibility[name] = 0 != (unitBase->Flags & UnitBaseFlag_Visible);
+                        _gameLayerVisibility[name] = 0 != (unitBase.Value->Flags & UnitBaseFlag_Visible);
                     }
                 }
 
                 var hideNamedUiElementAddress = sigScanner.ScanText(HideNamedUiElementSignature);
                 var showNamedUiElementAddress = sigScanner.ScanText(ShowNamedUiElementSignature);
 
-                _disposableList.Add(_hideHook = Hook<HideShowNamedUiElementDelegate>.FromAddress(hideNamedUiElementAddress, this.HideNamedUiElementDetour));
-                _disposableList.Add(_showHook = Hook<HideShowNamedUiElementDelegate>.FromAddress(showNamedUiElementAddress, this.ShowNamedUiElementDetour));
+                _disposableList.Add(_hideHook = gameInteropProvider.HookFromAddress<HideShowNamedUiElementDelegate>(hideNamedUiElementAddress, this.HideNamedUiElementDetour));
+                _disposableList.Add(_showHook = gameInteropProvider.HookFromAddress<HideShowNamedUiElementDelegate>(showNamedUiElementAddress, this.ShowNamedUiElementDetour));
                 _hideHook.Enable();
                 _showHook.Enable();
 
-            } catch {
+            }
+            catch {
                 Dispose();
                 throw;
             }

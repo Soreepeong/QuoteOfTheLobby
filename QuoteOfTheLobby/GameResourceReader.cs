@@ -1,18 +1,18 @@
 ﻿using Dalamud;
-using Dalamud.Data;
-using Dalamud.Game.ClientState;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Logging;
+using Dalamud.Plugin.Services;
 using Dalamud.Utility;
 using Lumina.Data.Files;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace QuoteOfTheLobby {
+namespace QuoteOfTheLobby
+{
     public class GameResourceReader {
-        private readonly DataManager _dataManager;
-        private readonly ClientState _clientState;
+        private readonly IDataManager _dataManager;
+        private readonly IClientState _clientState;
 
         public readonly List<Fdt> Fdts = new();
         public readonly List<byte[]> FontTextureData = new();
@@ -20,7 +20,7 @@ namespace QuoteOfTheLobby {
         private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.GeneratedSheets.World> _world;
         private readonly Dictionary<ClientLanguage, RandomQuoteReader> _randomQuoteReaders = new();
 
-        public GameResourceReader(DataManager dataManager, ClientState clientState) {
+        public GameResourceReader(IDataManager dataManager, IClientState clientState) {
             _dataManager = dataManager;
             _clientState = clientState;
 

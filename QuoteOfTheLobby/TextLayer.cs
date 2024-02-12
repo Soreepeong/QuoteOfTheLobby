@@ -2,6 +2,7 @@
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
+using Dalamud.Interface.Internal;
 using Dalamud.Logging;
 using ImGuiNET;
 using System;
@@ -11,7 +12,8 @@ using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Threading;
 
-namespace QuoteOfTheLobby {
+namespace QuoteOfTheLobby
+{
     public class TextLayer : IDisposable {
         private readonly GameResourceReader _reader;
         private readonly UiBuilder _uiBuilder;
@@ -21,7 +23,7 @@ namespace QuoteOfTheLobby {
 
         private class TextureLayer {
             public readonly SeString Text;
-            public ImGuiScene.TextureWrap? Texture;
+            public IDalamudTextureWrap Texture;
             public Thread? BuilderThread;
             public TextTextureGenerator.Result? BuildResult;
             public CancellationTokenSource? CancellationToken;
